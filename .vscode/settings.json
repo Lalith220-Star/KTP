@@ -2,5 +2,6 @@
   "deno.enable": true,
   "deno.unstable": true,
   "deno.lint": true,
-  "typescript.tsserver.enable": false
+  "typescript.tsserver.enable": false,
+  "git.ignoreLimitWarning": true
 }

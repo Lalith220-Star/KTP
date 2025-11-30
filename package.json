@@ -50,12 +50,17 @@
           "vaul": "^1.1.2"
       },
       "devDependencies": {
-          "@types/node": "^20.10.0",
-          "@vitejs/plugin-react-swc": "^3.10.2",
-          "vite": "6.3.5"
+              "@types/node": "^20.10.0",
+              "@vitejs/plugin-react-swc": "^3.10.2",
+              "vite": "6.3.5",
+              "ts-node": "^10.9.1",
+              "typescript": "^5.2.2"
       },
       "scripts": {
-          "dev": "vite",
-          "build": "vite build"
+              "dev": "vite",
+              "build": "vite build",
+              "test:ts": "ts-node backend/scoring/test_lbh.ts",
+              "seed:run": "bash scripts/run-seed.sh",
+              "build:shared": "node scripts/build-shared.js"
       }
   }
