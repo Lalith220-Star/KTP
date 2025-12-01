@@ -6,7 +6,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-export default async function (req: Request) {
+Deno.serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
@@ -26,9 +26,9 @@ export default async function (req: Request) {
       lbh_payload = computeLBH({ ratings: ratingVals, review_texts: textVals, hours_change_count: 0, job_post_count: 0 });
     }
 
-    return new Response(JSON.stringify({ restaurant, reviews, lbh: lbh_payload }), { status: 200 });
+    return new Response(JSON.stringify({ restaurant, reviews, lbh: lbh_payload }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     console.error(err);
-    return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
-}
+});

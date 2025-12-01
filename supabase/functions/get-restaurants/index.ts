@@ -5,7 +5,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-export default async function (req: Request) {
+Deno.serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const city = url.searchParams.get('city');
@@ -29,9 +29,9 @@ export default async function (req: Request) {
       return score >= min_lbh;
     });
 
-    return new Response(JSON.stringify({ restaurants: filtered }), { status: 200 });
+    return new Response(JSON.stringify({ restaurants: filtered }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     console.error(err);
-    return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
-}
+});
