@@ -47,6 +47,7 @@ export interface ScoreHistory {
 
 export interface Restaurant {
   id: number;
+  backendId?: string; // UUID from backend for API calls
   name: string;
   cuisine: string;
   address: string;

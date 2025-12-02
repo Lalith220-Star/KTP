@@ -1,10 +1,5 @@
-import { useState, useEffect } from "react";
 import { Restaurant } from "../types/restaurant";
-import { Card } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { MapPin, Navigation, X } from "lucide-react";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { Navigation } from "lucide-react";
 
 interface MapViewProps {
   restaurants: Restaurant[];
@@ -12,22 +7,12 @@ interface MapViewProps {
 }
 
 export function MapView({ restaurants, onRestaurantClick }: MapViewProps) {
-  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
-  const [userLocation] = useState({ lat: 32.9483, lng: -96.7299 }); // Richardson, TX center
-
-  // Calculate map bounds to show all restaurants
-  const calculateBounds = () => {
-    if (restaurants.length === 0) return null;
-    
-    const lats = restaurants.map(r => r.coordinates?.lat || userLocation.lat);
-    const lngs = restaurants.map(r => r.coordinates?.lng || userLocation.lng);
-    
-    return {
-      north: Math.max(...lats) + 0.05,
-      south: Math.min(...lats) - 0.05,
-      east: Math.max(...lngs) + 0.05,
-      west: Math.min(...lngs) - 0.05,
-    };
+  // Richardson, TX bounding box
+  const mapBounds = {
+    west: -96.78068,
+    east: -96.67063,
+    south: 32.91047,
+    north: 33.00492
   };
 
   const getScoreColor = (score: number) => {
@@ -37,53 +22,57 @@ export function MapView({ restaurants, onRestaurantClick }: MapViewProps) {
     return "#9ca3af"; // gray-400
   };
 
-  const bounds = calculateBounds();
-
   return (
     <div className="relative w-full h-[600px] bg-gray-100 rounded-lg overflow-hidden">
       {/* Map Container */}
-      <div className="absolute inset-0 bg-gray-200">
-        {/* SVG Map Visualization */}
-        <svg className="w-full h-full">
-          {/* Grid lines for visual effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50">
+        {/* Simple grid background */}
+        <svg className="absolute inset-0 w-full h-full opacity-20">
           <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e5e7eb" strokeWidth="1"/>
+            <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="50" x2="100" y2="50" stroke="#94a3b8" strokeWidth="2"/>
+              <line x1="50" y1="0" x2="50" y2="100" stroke="#94a3b8" strokeWidth="2"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+        
+        {/* Richardson label */}
+        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-white/80 px-4 py-2 rounded-lg shadow-md z-10">
+          <h3 className="text-lg font-semibold text-gray-700">Richardson, TX</h3>
+          <p className="text-sm text-gray-500">Restaurant Map</p>
+        </div>
+        
+        {/* SVG Overlay for Restaurant Markers */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+          <rect width="100%" height="100%" fill="transparent" />
           
           {/* Restaurant Markers */}
-          {restaurants.map((restaurant, index) => {
+          {restaurants.map((restaurant) => {
             if (!restaurant.coordinates) return null;
             
-            // Calculate position on SVG (simplified projection)
-            const x = bounds ? 
-              ((restaurant.coordinates.lng - bounds.west) / (bounds.east - bounds.west)) * 100 : 
-              50 + (index % 10) * 8;
-            const y = bounds ? 
-              (1 - (restaurant.coordinates.lat - bounds.south) / (bounds.north - bounds.south)) * 100 : 
-              30 + Math.floor(index / 10) * 15;
+            // Calculate position using map bounds
+            const x = ((restaurant.coordinates.lng - mapBounds.west) / (mapBounds.east - mapBounds.west)) * 1000;
+            const y = (1 - (restaurant.coordinates.lat - mapBounds.south) / (mapBounds.north - mapBounds.south)) * 600;
             
-            const isSelected = selectedRestaurant?.id === restaurant.id;
             const color = getScoreColor(restaurant.overallScore);
             
             return (
               <g 
                 key={restaurant.id}
-                transform={`translate(${x}%, ${y}%)`}
-                onClick={() => setSelectedRestaurant(restaurant)}
-                className="cursor-pointer transition-transform hover:scale-110"
+                transform={`translate(${x.toFixed(1)}, ${y.toFixed(1)})`}
+                onClick={() => onRestaurantClick(restaurant)}
+                className="cursor-pointer transition-transform hover:scale-110 pointer-events-auto"
                 style={{ transformOrigin: "center" }}
               >
                 {/* Marker Pin */}
                 <circle
                   cx="0"
                   cy="0"
-                  r={isSelected ? "8" : "6"}
+                  r="6"
                   fill={color}
                   stroke="white"
-                  strokeWidth={isSelected ? "3" : "2"}
+                  strokeWidth="2"
                   className="transition-all"
                 />
                 {/* Score Label */}
@@ -102,8 +91,8 @@ export function MapView({ restaurants, onRestaurantClick }: MapViewProps) {
             );
           })}
           
-          {/* User Location */}
-          <g transform={`translate(50%, 50%)`}>
+          {/* User Location - Richardson Center */}
+          <g transform="translate(500, 300)">
             <circle cx="0" cy="0" r="8" fill="#ef4444" stroke="white" strokeWidth="3" />
             <circle cx="0" cy="0" r="3" fill="white" />
           </g>
@@ -132,52 +121,6 @@ export function MapView({ restaurants, onRestaurantClick }: MapViewProps) {
           </div>
         </div>
       </div>
-
-      {/* Restaurant Info Card */}
-      {selectedRestaurant && (
-        <div className="absolute bottom-4 left-4 right-4 md:left-4 md:right-auto md:w-96 z-10">
-          <Card className="p-4 shadow-xl">
-            <button
-              onClick={() => setSelectedRestaurant(null)}
-              className="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            
-            <div className="flex gap-4">
-              <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                <ImageWithFallback
-                  src={selectedRestaurant.image}
-                  alt={selectedRestaurant.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-foreground mb-1 truncate">{selectedRestaurant.name}</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs">
-                    {selectedRestaurant.cuisine}
-                  </Badge>
-                  <Badge className="bg-blue-600 text-xs">
-                    {selectedRestaurant.overallScore}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {selectedRestaurant.distance}
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => onRestaurantClick(selectedRestaurant)}
-                  className="w-full"
-                >
-                  View Details
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* Map Instructions */}
       <div className="absolute top-4 left-4 bg-card/90 backdrop-blur-sm rounded-lg px-3 py-2 text-sm text-foreground shadow-md z-10 border">

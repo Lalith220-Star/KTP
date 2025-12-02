@@ -8,15 +8,30 @@ async function callFunction(name: string, method = 'GET', body?: any, token?: st
   const url = `${FUNCTIONS_BASE}/${name}`;
   const headers: any = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const resp = await fetch(url + (method === 'GET' && body ? ('?' + new URLSearchParams(body)) : ''), {
+  
+  // Build query string for GET requests
+  let fullUrl = url;
+  if (method === 'GET' && body) {
+    const params = new URLSearchParams();
+    Object.keys(body).forEach(key => {
+      if (body[key] !== undefined && body[key] !== null) {
+        params.append(key, String(body[key]));
+      }
+    });
+    fullUrl = `${url}?${params.toString()}`;
+  }
+  
+  const resp = await fetch(fullUrl, {
     method,
     headers,
     body: method === 'GET' ? undefined : JSON.stringify(body)
   });
+  
   if (!resp.ok) {
     const text = await resp.text();
     throw new Error(`Function ${name} error: ${resp.status} ${text}`);
   }
+  
   return resp.json();
 }
 

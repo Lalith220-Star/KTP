@@ -83,14 +83,27 @@ def upsert_business(conn, biz):
     lat = biz.get('coordinates', {}).get('latitude')
     lng = biz.get('coordinates', {}).get('longitude')
 
-    sql = """
-    INSERT INTO restaurants (external_id, name, address, city, state, zip, cuisine, lat, lng)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name, address = EXCLUDED.address, city = EXCLUDED.city, state = EXCLUDED.state, zip = EXCLUDED.zip, cuisine = EXCLUDED.cuisine, lat = EXCLUDED.lat, lng = EXCLUDED.lng
-    RETURNING id
-    """
-    cur.execute(sql, (ext_id, name, address, city, state, zip_code, cuisine, lat, lng))
-    rid = cur.fetchone()[0]
+    # Check if restaurant already exists
+    cur.execute("SELECT id FROM restaurants WHERE external_id = %s", (ext_id,))
+    existing = cur.fetchone()
+    
+    if existing:
+        # Update existing restaurant
+        rid = existing[0]
+        cur.execute("""
+            UPDATE restaurants 
+            SET name = %s, address = %s, city = %s, state = %s, zip = %s, cuisine = %s, lat = %s, lng = %s
+            WHERE id = %s
+        """, (name, address, city, state, zip_code, cuisine, lat, lng, rid))
+    else:
+        # Insert new restaurant
+        cur.execute("""
+            INSERT INTO restaurants (external_id, name, address, city, state, zip, cuisine, lat, lng)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
+        """, (ext_id, name, address, city, state, zip_code, cuisine, lat, lng))
+        rid = cur.fetchone()[0]
+    
     conn.commit()
     return rid
 

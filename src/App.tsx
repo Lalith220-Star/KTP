@@ -31,6 +31,8 @@ import { toast, Toaster } from "sonner@2.0.3";
 import { Restaurant, Review, User, UserActivity } from "./types/restaurant";
 import { getRestaurantsByLocation } from "./data/allRestaurantsData";
 import { isRestaurantOpen } from "./utils/timeUtils";
+import { useRestaurants } from "./hooks/useRestaurants";
+import { useRestaurantDetail } from "./hooks/useRestaurantDetail";
 
 const categories = ["All", "American", "Asian", "BBQ", "Breakfast", "Burgers", "Indian", "Italian", "Japanese", "Mediterranean", "Mexican", "Seafood", "Vietnamese"];
 const priceRanges = ["All", "$", "$$", "$$$"];
@@ -131,11 +133,17 @@ const initialReviews: Review[] = [
 
 export default function App() {
   const [currentLocation, setCurrentLocation] = useState<Location>(AVAILABLE_LOCATIONS[0]); // Richardson by default
+  
+  // Fetch real restaurants from backend
+  const { restaurants: backendRestaurants, loading: restaurantsLoading, error: restaurantsError } = useRestaurants({
+    city: currentLocation.city,
+    limit: 100,
+  });
+  
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAddBusinessDialog, setShowAddBusinessDialog] = useState(false);
   const [currentView, setCurrentView] = useState<"home" | "dashboard" | "detail" | "map" | "comparison" | "profile" | "settings" | "help" | "legal">("home");
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(getRestaurantsByLocation(AVAILABLE_LOCATIONS[0].id));
   const [userBusinessId, setUserBusinessId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -144,10 +152,28 @@ export default function App() {
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [activeTab, setActiveTab] = useState<"all" | "favorites">("all");
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  
+  // Fetch real reviews when viewing restaurant details
+  const { reviews: detailReviews, loading: detailLoading } = useRestaurantDetail(
+    selectedRestaurant?.backendId || null
+  );
+  
+  // Use real restaurants from backend, fall back to mock data if loading/error
+  const restaurants = backendRestaurants.length > 0 ? backendRestaurants : getRestaurantsByLocation(currentLocation.id);
+  const isLoading = restaurantsLoading;
+  
+  // Show error toast if backend fails
+  useEffect(() => {
+    if (restaurantsError) {
+      console.error('Backend error:', restaurantsError);
+      toast.error('Using demo data - backend unavailable');
+    } else if (backendRestaurants.length > 0) {
+      toast.success(`Loaded ${backendRestaurants.length} restaurants from Richardson, TX`);
+    }
+  }, [restaurantsError, backendRestaurants.length]);
   
   const [filters, setFilters] = useState<FilterState>({
     category: "All",
@@ -529,14 +555,9 @@ export default function App() {
   // Handle location change
   const handleLocationChange = (location: Location) => {
     setCurrentLocation(location);
-    setIsLoading(true);
     
-    // Load restaurants for the new location
-    const newRestaurants = getRestaurantsByLocation(location.id);
-    setRestaurants(newRestaurants);
-    
-    // Clear favorites when changing location (or keep them - your choice)
-    // setFavorites([]);
+    // Note: Restaurants will auto-reload via useRestaurants hook
+    // when currentLocation changes
     
     // Reset to home view
     setCurrentView("home");
@@ -546,7 +567,6 @@ export default function App() {
     clearFilters();
     
     toast.success(`Switched to ${location.displayName}`);
-    setIsLoading(false);
   };
 
   // Handle onboarding completion
@@ -678,6 +698,9 @@ export default function App() {
   }
 
   if (currentView === "detail" && selectedRestaurant) {
+    // Use real reviews from backend, fall back to mock reviews if loading or error
+    const displayReviews = detailReviews.length > 0 ? detailReviews : reviews;
+    
     return (
       <ThemeProvider>
         <div className="min-h-screen bg-background text-foreground transition-colors">
@@ -689,7 +712,7 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             onAddReview={handleAddReview}
             onVoteReview={handleVoteReview}
-            reviews={reviews}
+            reviews={displayReviews}
             userEmail={user?.email}
             onReplyToReview={handleReplyToReview}
             isBusinessOwner={user?.isBusiness && userBusiness?.id === selectedRestaurant.id}

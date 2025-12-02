@@ -70,18 +70,72 @@ def upsert_place(conn, result):
     loc = geometry.get('location', {})
     lat = loc.get('lat')
     lng = loc.get('lng')
-    # pick cuisine from name or leave null (could be improved)
+    
+    # Extract cuisine from types array
     cuisine = None
+    types = result.get('types', [])
+    cuisine_map = {
+        'american_restaurant': 'American',
+        'italian_restaurant': 'Italian',
+        'mexican_restaurant': 'Mexican',
+        'chinese_restaurant': 'Chinese',
+        'japanese_restaurant': 'Japanese',
+        'indian_restaurant': 'Indian',
+        'thai_restaurant': 'Thai',
+        'vietnamese_restaurant': 'Vietnamese',
+        'korean_restaurant': 'Korean',
+        'french_restaurant': 'French',
+        'mediterranean_restaurant': 'Mediterranean',
+        'greek_restaurant': 'Greek',
+        'spanish_restaurant': 'Spanish',
+        'middle_eastern_restaurant': 'Middle Eastern',
+        'seafood_restaurant': 'Seafood',
+        'steakhouse': 'Steakhouse',
+        'barbecue_restaurant': 'BBQ',
+        'pizza_restaurant': 'Pizza',
+        'sandwich_shop': 'Sandwiches',
+        'hamburger_restaurant': 'Burgers',
+        'fast_food_restaurant': 'Fast Food',
+        'bakery': 'Bakery',
+        'cafe': 'Cafe',
+        'bar': 'Bar & Grill',
+        'sushi_restaurant': 'Sushi',
+        'ramen_restaurant': 'Ramen',
+        'asian_restaurant': 'Asian',
+        'latin_american_restaurant': 'Latin American',
+        'brazilian_restaurant': 'Brazilian',
+    }
+    
+    for t in types:
+        if t in cuisine_map:
+            cuisine = cuisine_map[t]
+            break
+    
+    # Fallback: just use 'Restaurant' if no specific type found
+    if not cuisine and 'restaurant' in types:
+        cuisine = 'Restaurant'
 
-    sql = """
-    INSERT INTO restaurants (external_id, name, address, city, state, zip, cuisine, lat, lng)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name, address = EXCLUDED.address, lat = EXCLUDED.lat, lng = EXCLUDED.lng
-    RETURNING id
-    """
-    # Address parsing into city/state/zip is not handled here; store full address in `address`.
-    cur.execute(sql, (place_id, name, address, None, None, None, cuisine, lat, lng))
-    rid = cur.fetchone()[0]
+    # Check if restaurant already exists
+    cur.execute("SELECT id FROM restaurants WHERE external_id = %s", (place_id,))
+    existing = cur.fetchone()
+    
+    if existing:
+        # Update existing restaurant
+        rid = existing[0]
+        cur.execute("""
+            UPDATE restaurants 
+            SET name = %s, address = %s, cuisine = %s, lat = %s, lng = %s
+            WHERE id = %s
+        """, (name, address, cuisine, lat, lng, rid))
+    else:
+        # Insert new restaurant
+        cur.execute("""
+            INSERT INTO restaurants (external_id, name, address, city, state, zip, cuisine, lat, lng)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
+        """, (place_id, name, address, None, None, None, cuisine, lat, lng))
+        rid = cur.fetchone()[0]
+    
     conn.commit()
     return rid
 
