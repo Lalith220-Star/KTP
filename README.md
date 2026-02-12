@@ -1,7 +1,7 @@
 
   # Restaurant Rating Website
 
-  This is a code bundle for Restaurant Rating Website. The original project is available at https://www.figma.com/design/pSrnouZM3gxu4yxk9ThQn2/Restaurant-Rating-Website.
+  This is a code bundle for Restaurant Rating Website.
 
   ## Running the code
 
